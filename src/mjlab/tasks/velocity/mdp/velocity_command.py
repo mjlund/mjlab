@@ -180,17 +180,18 @@ class UniformVelocityCommandCfg(CommandTermCfg):
   asset_name: str
   heading_command: bool = False
   heading_control_stiffness: float = 1.0
-  rel_standing_envs: float = 0.0
-  rel_heading_envs: float = 1.0
+  rel_standing_envs: float = 0.1 #changed
+  rel_heading_envs: float = 0.3 #changed
   init_velocity_prob: float = 0.0
+  resampling_time_range: tuple[float, float] = (3.0, 8.0) #added
   class_type: type[CommandTerm] = UniformVelocityCommand
 
-  @dataclass
+  @dataclass 
   class Ranges:
-    lin_vel_x: tuple[float, float] = (0.0, 0.0)
-    lin_vel_y: tuple[float, float] = (0.0, 0.0)
-    ang_vel_z: tuple[float, float] = (0.0, 0.0)
-    heading: tuple[float, float] | None = None
+    lin_vel_x: tuple[float, float] = (-1.0, 1.0) #changed
+    lin_vel_y: tuple[float, float] = (-1.0, 1.0) #changed
+    ang_vel_z: tuple[float, float] = (-1.0, 1.0) #changed
+    heading: tuple[float, float] | None = (-np.pi, np.pi) #changed
 
   ranges: Ranges = field(default_factory=Ranges)
 

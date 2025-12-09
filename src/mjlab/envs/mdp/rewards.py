@@ -52,7 +52,7 @@ def action_rate_l2(env: ManagerBasedRlEnv) -> torch.Tensor:
   )
 
 
-def joint_pos_limits(
+def joint_pos_limits( #this was already here
   env: ManagerBasedRlEnv, asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG
 ) -> torch.Tensor:
   """Penalize joint positions if they cross the soft limits."""
@@ -103,7 +103,6 @@ class posture:
     error_squared = torch.square(current_joint_pos - desired_joint_pos)
     return torch.exp(-torch.mean(error_squared / (self.std**2), dim=1))
 
-
 def electrical_power_cost(
   env: ManagerBasedRlEnv,
   asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
@@ -124,3 +123,20 @@ def flat_orientation_l2(
   """Penalize non-flat base orientation."""
   asset: Entity = env.scene[asset_cfg.name]
   return torch.sum(torch.square(asset.data.projected_gravity_b[:, :2]), dim=1)
+
+# # wrote lin_vel and ang_vel here
+# def lin_vel( #added
+#   env: ManagerBasedRlEnv,
+#   asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+# ) -> torch.Tensor:
+#   """Penalize deviation from linear velocity."""
+#   asset: Entity = env.scene[asset_cfg.name]
+#   return torch.sum(torch.square(asset.data.root_com_lin_vel_b[:, :2]), dim=1)
+
+# def ang_vel( #added
+#   env: ManagerBasedRlEnv,
+#   asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+# ) -> torch.Tensor:
+#   """Penalize deviation from angular (yaw) velocity."""
+#   asset: Entity = env.scene[asset_cfg.name]
+#   return torch.sum(torch.square(asset.data.root_com_ang_vel_b[:, :2]), dim=1)

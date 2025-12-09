@@ -117,8 +117,9 @@ def create_velocity_env_cfg(
   commands: dict[str, CommandTermCfg] = {
     "twist": UniformVelocityCommandCfg(
       asset_name="robot",
-      resampling_time_range=(1e9, 1e9),
-      rel_standing_envs=1.0,
+      resampling_time_range=(0.3, 0.8), #changed
+      rel_standing_envs=0.1, #changed
+      heading_command=True #added this line
     )
   }
 
@@ -130,6 +131,27 @@ def create_velocity_env_cfg(
     "joint_pos": ObservationTermCfg(
       func=mdp.joint_pos_rel,
       noise=Unoise(n_min=-0.01, n_max=0.01),
+    ),
+    "base_lin_vel": ObservationTermCfg( #added
+      func=mdp.base_lin_vel,
+      noise=Unoise(n_min=-0.5, n_max=0.5),
+    ),
+    "base_ang_vel": ObservationTermCfg( #added
+      func=mdp.base_ang_vel,
+      noise=Unoise(n_min=-0.2, n_max=0.2),
+    ),
+    "joint_vel_rel": ObservationTermCfg( #added
+      func=mdp.joint_vel_rel,
+      noise=Unoise(n_min=-1.5, n_max=1.5),
+    ),
+    "last_action": ObservationTermCfg( #added
+      func=mdp.last_action,
+    ),
+    "generated_commands": ObservationTermCfg( #added
+      func=mdp.generated_commands,
+      params={
+        "command_name": "twist"
+      },
     ),
   }
 
@@ -168,9 +190,47 @@ def create_velocity_env_cfg(
         "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
       },
     ),
+    "foot_friction_rand": EventTermCfg( #added
+      func=mdp.randomize_field,
+      mode="startup",
+      domain_randomization=True,
+      params={
+        "asset_cfg": SceneEntityCfg("robot", geom_names=foot_friction_geom_names),
+        "field": "geom_friction",
+        "ranges": (0.3, 1.2),
+        "operation": "abs",
+      },
+    ),
+    "perturbations_rand": EventTermCfg( #added
+      func=mdp.push_by_setting_velocity,
+      mode="interval",
+      domain_randomization=True,
+      interval_range_s= (1.0, 3.0),
+      params={
+        "asset_cfg": SceneEntityCfg("robot"),
+        "velocity_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5)},
+        #"field": "root_lin_vel", #unsure if correct field
+      },
+    ),
   }
 
   rewards = {
+    "lin_vel": RewardTermCfg( #added
+      func=mdp.track_linear_velocity,
+      weight=2.0,
+      params={
+        "std": math.sqrt(0.25),
+        "command_name": "twist" ##does this change?
+      },
+    ),
+    "ang_vel": RewardTermCfg( #added
+      func=mdp.track_angular_velocity,
+      weight=2.0,
+      params={
+        "std": math.sqrt(0.25),
+        "command_name": "twist"
+      },
+    ),
     "upright": RewardTermCfg(
       func=mdp.flat_orientation,
       weight=1.0,
@@ -188,13 +248,27 @@ def create_velocity_env_cfg(
       },
     ),
     "action_rate_l2": RewardTermCfg(func=mdp.action_rate_l2, weight=-0.1),
+    "joint_pos_limits": RewardTermCfg( #added
+      func=mdp.joint_pos_limits,
+      weight=-1.0,
+      params={
+        "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)), #".*" instead of listing each joint individually
+      },
+    ),
+    "default_joint_position": RewardTermCfg( #added
+      func=mdp.default_joint_position, 
+      weight=-1.0,
+      params={
+        "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
+      },
+    ),
   }
 
   terminations = {
     "time_out": TerminationTermCfg(func=mdp.time_out, time_out=True),
     "fell_over": TerminationTermCfg(
       func=mdp.bad_orientation,
-      params={"limit_angle": math.radians(30.0)},
+      params={"limit_angle": math.radians(60.0)}, #changed 30 -> 60 deg
     ),
   }
 

@@ -214,6 +214,9 @@ class EventManager(ManagerBase):
         self._reset_term_last_triggered_once.append(no_trigger)
 
       if term_cfg.domain_randomization:
-        field_name = term_cfg.params["field"]
-        if field_name not in self._domain_randomization_fields:
+        #field_name = term_cfg.params["field"]
+        field_name = term_cfg.params.get("field", None)
+        # if field_name not in self._domain_randomization_fields:
+        #   self._domain_randomization_fields.append(field_name)
+        if field_name is not None and field_name not in self._domain_randomization_fields:
           self._domain_randomization_fields.append(field_name)
