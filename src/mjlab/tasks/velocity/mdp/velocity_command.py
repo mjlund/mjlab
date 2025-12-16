@@ -188,9 +188,9 @@ class UniformVelocityCommandCfg(CommandTermCfg):
 
   @dataclass 
   class Ranges:
-    lin_vel_x: tuple[float, float] = (-1.0, 1.0) #changed
-    lin_vel_y: tuple[float, float] = (-1.0, 1.0) #changed
-    ang_vel_z: tuple[float, float] = (-1.0, 1.0) #changed
+    lin_vel_x: tuple[float, float] = (0.1, 0.4) #changed, must be within (-1.0, 1.0)
+    lin_vel_y: tuple[float, float] = (-0.1, 0.1) #changed, must be within (-1.0, 1.0)
+    ang_vel_z: tuple[float, float] = (-0.1, 0.1) #changed
     heading: tuple[float, float] | None = (-np.pi, np.pi) #changed
 
   ranges: Ranges = field(default_factory=Ranges)
@@ -208,3 +208,4 @@ class UniformVelocityCommandCfg(CommandTermCfg):
         "The velocity command has heading commands active (heading_command=True) but "
         "the `ranges.heading` parameter is set to None."
       )
+    
