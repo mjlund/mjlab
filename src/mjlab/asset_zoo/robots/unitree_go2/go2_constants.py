@@ -1,3 +1,4 @@
+
 """Unitree Go2 constants."""
 
 from pathlib import Path
@@ -45,17 +46,19 @@ ROTOR_INERTIA = 0.000111842
 
 # Gearbox.
 HIP_GEAR_RATIO = 6
-KNEE_GEAR_RATIO = HIP_GEAR_RATIO * 1.5
+# KNEE_GEAR_RATIO = HIP_GEAR_RATIO * 1.5
+KNEE_GEAR_RATIO =12 #updated
 
 HIP_ACTUATOR = ElectricActuator(
   reflected_inertia=reflected_inertia(ROTOR_INERTIA, HIP_GEAR_RATIO),
   velocity_limit=30.1,
   effort_limit=23.7,
 )
+
 KNEE_ACTUATOR = ElectricActuator(
   reflected_inertia=reflected_inertia(ROTOR_INERTIA, KNEE_GEAR_RATIO),
-  velocity_limit=15.70,
-  effort_limit=45.43,
+  velocity_limit=15.70, #checked
+  effort_limit=45.43, #checked
 )
 
 NATURAL_FREQ = 10 * 2.0 * 3.1415926535  # 10Hz
