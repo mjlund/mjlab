@@ -48,7 +48,7 @@ class ManagerBasedRlEnvCfg:
   """
 
   # Base environment configuration.
-  decimation: int
+  decimation: int 
   scene: SceneCfg
   observations: dict[str, ObservationGroupCfg]
   actions: dict[str, ActionTermCfg]
@@ -65,7 +65,7 @@ class ManagerBasedRlEnvCfg:
   viewer: ViewerConfig = field(default_factory=ViewerConfig)
 
   # RL-specific configuration.
-  episode_length_s: float = 0.0
+  episode_length_s: float = 0
   rewards: dict[str, RewardTermCfg] = field(default_factory=dict)
   terminations: dict[str, TerminationTermCfg] = field(default_factory=dict)
   commands: dict[str, CommandTermCfg] | None = None
@@ -286,6 +286,7 @@ class ManagerBasedRlEnv:
     Returns:
         Tuple of (observations, rewards, terminated, truncated, extras)
     """
+    
     self.action_manager.process_action(action.to(self.device))
 
     for _ in range(self.cfg.decimation):
@@ -299,12 +300,14 @@ class ManagerBasedRlEnv:
     self.episode_length_buf += 1
     self.common_step_counter += 1
 
-    # Check terminations.
+   # Compute rewards FIRST (updates phase tracker)
+    self.reward_buf = self.reward_manager.compute(dt=self.step_dt)
+
+    # THEN check terminations (reads updated phase)
     self.reset_buf = self.termination_manager.compute()
     self.reset_terminated = self.termination_manager.terminated
     self.reset_time_outs = self.termination_manager.time_outs
 
-    self.reward_buf = self.reward_manager.compute(dt=self.step_dt)
 
     # Reset envs that terminated/timed-out and log the episode info.
     reset_env_ids = self.reset_buf.nonzero(as_tuple=False).squeeze(-1)
