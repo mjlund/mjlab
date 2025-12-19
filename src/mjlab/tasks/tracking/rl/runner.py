@@ -28,7 +28,7 @@ class MotionTrackingOnPolicyRunner(OnPolicyRunner):
   def save(self, path: str, infos=None):
     """Save the model and training information."""
     super().save(path, infos)
-    if self.logger_type in ["wandb"]:
+    if self.TensorBoard in ["wandb"]:
       policy_path = path.split("model")[0]
       filename = policy_path.split("/")[-2] + ".onnx"
       if self.alg.policy.actor_obs_normalization:
@@ -54,3 +54,4 @@ class MotionTrackingOnPolicyRunner(OnPolicyRunner):
       if self.registry_name is not None:
         wandb.run.use_artifact(self.registry_name)  # type: ignore
         self.registry_name = None
+
