@@ -37,7 +37,7 @@ dependencies = [
     "torch>=2.7.0",
     "warp-lang",
     "mujoco-warp",
-    "mujoco<=3.3.8",
+    "mujoco==3.3.8.dev834200782",
     "trimesh>=4.8.3",
     "viser>=1.0.15",
     "moviepy",
@@ -136,3 +136,4 @@ markers = [
   "slow: marks tests as slow (deselect with '-m \"not slow\"')",
 ]
 addopts = "--strict-markers"
+
