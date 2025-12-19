@@ -61,7 +61,7 @@ KNEE_ACTUATOR = ElectricActuator(
 )
 
 NATURAL_FREQ = 10 * 2.0 * 3.1415926535  # 10Hz
-DAMPING_RATIO = 2.0
+DAMPING_RATIO = 0.8
 
 STIFFNESS_HIP = HIP_ACTUATOR.reflected_inertia * NATURAL_FREQ**2
 DAMPING_HIP = 2 * DAMPING_RATIO * HIP_ACTUATOR.reflected_inertia * NATURAL_FREQ
@@ -163,4 +163,7 @@ for a in GO2_ARTICULATION.actuators:
   names = a.joint_names_expr
   assert e is not None
   for n in names:
-    GO2_ACTION_SCALE[n] = 0.25 * e / s
+    if "calf" in n:
+      GO2_ACTION_SCALE[n] = 0.45 * e / s
+    else:
+      GO2_ACTION_SCALE[n] = 0.30 * e / s
