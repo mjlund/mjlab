@@ -16,7 +16,7 @@ class VelocityOnPolicyRunner(OnPolicyRunner):
   def save(self, path: str, infos=None):
     """Save the model and training information."""
     super().save(path, infos)
-    if self.TensorBoard in ["wandb"]:
+    if self.logger_type in ["wandb"]:
       policy_path = path.split("model")[0]
       filename = os.path.basename(os.path.dirname(policy_path)) + ".onnx"
       if self.alg.policy.actor_obs_normalization:
@@ -36,4 +36,5 @@ class VelocityOnPolicyRunner(OnPolicyRunner):
         filename=filename,
       )
       wandb.save(policy_path + filename, base_path=os.path.dirname(policy_path))
+
 
