@@ -19,7 +19,8 @@ def base_euler_angles(
   env: ManagerBasedRlEnv, asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG
 ) -> torch.Tensor:
   asset: Entity = env.scene[asset_cfg.name]
-  return euler_xyz_from_quat(asset.data.root_link_quat_w)
+  roll, pitch, yaw = euler_xyz_from_quat(asset.data.root_link_quat_w)
+  return torch.stack((roll, pitch, yaw), dim=1)
 
 
 def base_height(
@@ -148,4 +149,5 @@ def generated_commands(env: ManagerBasedRlEnv, command_name: str) -> torch.Tenso
   command = env.command_manager.get_command(command_name)
   assert command is not None
   return command
+
 
