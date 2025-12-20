@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 #from src.mjlab.tasks.velocity.mdp.velocity_command import UniformVelocityCommandCfg
-from src.mjlab.tasks.backflip.mdp.backflip_command import BackflipCommandCfg #added
+#from src.mjlab.tasks.backflip.mdp.backflip_command import BackflipCommandCfg #added
 import torch
 
 from mjlab.entity import Entity
@@ -30,12 +30,27 @@ class BackflipCommand(CommandTerm):
 
     self.robot: Entity = env.scene[cfg.asset_name]
 
-    # [lin_vel_x, lin_vel_y, ang_vel_pitch]
+    # # [lin_vel_x, lin_vel_y, ang_vel_pitch]
     self.backflip_command_b = torch.zeros(self.num_envs, 3, device=self.device)
     
     self.metrics["error_vel_xy"] = torch.zeros(self.num_envs, device=self.device)
     self.metrics["error_vel_pitch"] = torch.zeros(self.num_envs, device=self.device)
+    self.metrics["error_vel_yaw"] = torch.zeros(self.num_envs, device=self.device)
+    self.metrics["error_vel_roll"] = torch.zeros(self.num_envs, device=self.device)
+    # self.command_tensor = torch.zeros(self.num_envs, 4, device=self.device)
 
+        # --- State Tracking ---
+    self.phase = torch.zeros(self.num_envs, device=self.device)
+    self.phase_rate = 1.0 / cfg.flip_duration
+    self.max_height = torch.zeros(self.num_envs, device=self.device)
+        
+    self.total_pitch = torch.zeros(self.num_envs, device=self.device)
+    self.total_yaw = torch.zeros(self.num_envs, device=self.device)
+    self.total_roll = torch.zeros(self.num_envs, device=self.device)
+        
+    self.prev_pitch = torch.zeros(self.num_envs, device=self.device)
+    self.prev_yaw = torch.zeros(self.num_envs, device=self.device)
+    self.prev_roll = torch.zeros(self.num_envs, device=self.device)
 
       
 """
@@ -78,58 +93,51 @@ def command(self) -> torch.Tensor:
   return self.backflip_command_b
   #return self.command_tensor 
 
+from mjlab.third_party.isaaclab.isaaclab.utils.math import euler_xyz_from_quat
 
 def _update_metrics(self) -> None:
-    max_command_time = self.cfg.resampling_time_range[1]
-    max_command_step = max_command_time / self._env.step_dt
-    #linear verlocity error
-    self.metrics["error_vel_xy"] += (
-      torch.norm(
-        self.backflip_command_b[:, :2] - self.robot.data.root_link_lin_vel_b[:, :2], dim=-1
-      )
-      / max_command_step
-    )
-    #angular velocity error (pitch)
-    self.metrics["error_vel_pitch"] += (
-      torch.abs(self.backflip_command_b[:,2 ] - self.robot.data.root_link_ang_vel_b[:, 1])
-      / max_command_step
-    )
-    #yaw and roll should stay 0
-    self.metrics["error_vel_yaw"] += (
-      torch.abs(0.0 - self.robot.data.root_link_ang_vel_b[:, 2])
-      / max_command_step
-    )
-    self.metrics["error_vel_roll"] += (
-      torch.abs(0.0 - self.robot.data.root_link_ang_vel_b[:, 0])
-      / max_command_step      
-    )
+  # Time-averaging denominator
+        max_command_step = self.cfg.flip_duration / self._env.step_dt
+        
+        # 1. Update Euler angles and store in metrics for rewards
+        # We need world euler to track the 360-degree rotation properly
+        from mjlab.third_party.isaaclab.isaaclab.utils.math import euler_xyz_from_quat
+        root_euler_w = euler_xyz_from_quat(self.robot.data.root_link_quat_w)
+        self.metrics["root_euler_w"] = root_euler_w
+        self.metrics["phi"] = self.phase
 
-    # track max height
-    current_height = self.robot.data.root_link_pos_w[:, 2]
-    self.max_height = torch.max(self.max_height, current_height)
-    self.metrics["max_height"] = self.max_height
+        # 2. Velocity Tracking Errors
+        self.metrics["error_vel_xy"] += (
+            torch.norm(self.backflip_command_b[:, :2] - self.robot.data.root_link_lin_vel_b[:, :2], dim=-1)
+            / max_command_step
+        )
+        self.metrics["error_vel_pitch"] += (
+            torch.abs(self.backflip_command_b[:, 2] - self.robot.data.root_link_ang_vel_b[:, 1])
+            / max_command_step
+        )
+        # Stability (Yaw/Roll should be 0)
+        self.metrics["error_vel_yaw"] += torch.abs(self.robot.data.root_link_ang_vel_b[:, 2]) / max_command_step
+        self.metrics["error_vel_roll"] += torch.abs(self.robot.data.root_link_ang_vel_b[:, 0]) / max_command_step
 
-    #track current total pitch (360 max)
-    current_pitch = self.robot.data.euler_angles_b[:, 1]
-    delta_pitch = wrap_to_pi(current_pitch - self.prev_pitch)
-    self.total_pitch += torch.abs(delta_pitch)
-    self.prev_pitch = current_pitch
-    self.metrics["total_pitch"] = self.total_pitch
+        # 3. Height Tracking
+        current_height = self.robot.data.root_link_pos_w[:, 2]
+        self.max_height = torch.max(self.max_height, current_height)
+        self.metrics["max_height"] = self.max_height
+        '''
+        # 4. Total Rotation Tracking
+        curr_p, curr_y, curr_r = root_euler_w[:, 1], root_euler_w[:, 2], root_euler_w[:, 0]
+        
+        self.total_pitch += torch.abs(wrap_to_pi(curr_p - self.prev_pitch))
+        self.total_yaw += torch.abs(wrap_to_pi(curr_y - self.prev_yaw))
+        self.total_roll += torch.abs(wrap_to_pi(curr_r - self.prev_roll))
 
-    # track current total yaw 
-    current_yaw = self.robot.data.euler_angles_b[:, 2]
-    delta_yaw = wrap_to_pi(current_yaw - self.prev_yaw)
-    self.total_yaw += torch.abs(delta_yaw)
-    self.prev_yaw = current_yaw
-    self.metrics["total_yaw"] = self.total_yaw
+        self.prev_pitch[:], self.prev_yaw[:], self.prev_roll[:] = curr_p, curr_y, curr_r
+        
+        self.metrics["total_pitch"] = self.total_pitch
+        self.metrics["total_yaw"] = self.total_yaw
+        self.metrics["total_roll"] = self.total_roll
+        '''
 
-    #track current total roll
-    current_roll = self.robot.data.euler_angles_b[:, 0]
-    delta_roll = wrap_to_pi(current_roll - self.prev_roll)
-    self.total_roll += torch.abs(delta_roll)
-    self.prev_roll = current_roll
-    self.metrics["total_roll"] = self.total_roll
-      
 
 
 def _resample_command(self, env_ids: torch.Tensor) -> None:
