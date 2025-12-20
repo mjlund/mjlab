@@ -117,9 +117,10 @@ def create_backflip_env_cfg(
   commands: dict[str, CommandTermCfg] = {
     "twist": BackflipCommandCfg(
       asset_name="robot",
+      flip_duration = 1.2, 
       resampling_time_range=(0.3, 0.8), #changed
-      rel_standing_envs=0.1, #changed
-      heading_command=True #added this line
+      class_type = type[CommandTermCfg] #rel_standing_envs=0.1, #changed
+      #heading_command=True #added this line
     )
   }
 
@@ -319,3 +320,4 @@ def create_backflip_env_cfg(
     decimation=4,
     episode_length_s=20.0,
   )
+
