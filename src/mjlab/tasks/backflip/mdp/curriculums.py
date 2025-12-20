@@ -7,7 +7,7 @@ import torch
 from mjlab.entity import Entity
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 
-from .velocity_command import UniformVelocityCommandCfg
+from .backflip_command import BackflipCommandCfg
 
 if TYPE_CHECKING:
   from mjlab.envs import ManagerBasedRlEnv
@@ -73,7 +73,7 @@ def commands_vel(
   del env_ids  # Unused.
   command_term = env.command_manager.get_term(command_name)
   assert command_term is not None
-  cfg = cast(UniformVelocityCommandCfg, command_term.cfg)
+  cfg = cast(BackflipCommandCfg, command_term.cfg)
   for stage in velocity_stages:
     if env.common_step_counter > stage["step"]:
       if "lin_vel_x" in stage and stage["lin_vel_x"] is not None:
@@ -105,3 +105,4 @@ def reward_weight(
     if env.common_step_counter > stage["step"]:
       reward_term_cfg.weight = stage["weight"]
   return torch.tensor([reward_term_cfg.weight])
+
