@@ -9,7 +9,7 @@ from mjlab.envs.mdp.actions.joint_actions import JointAction
 from mjlab.third_party.isaaclab.isaaclab_rl.rsl_rl.exporter import _OnnxPolicyExporter
 
 
-def export_velocity_policy_as_onnx(
+def export_backflip_policy_as_onnx(
   actor_critic: object,
   path: str,
   normalizer: object | None = None,
@@ -64,3 +64,4 @@ def attach_onnx_metadata(
     model.metadata_props.append(entry)
 
   onnx.save(model, onnx_path)
+
