@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -44,6 +45,18 @@ class UniformVelocityCommand(CommandTerm):
     self.metrics["error_vel_xy"] = torch.zeros(self.num_envs, device=self.device)
     self.metrics["error_vel_yaw"] = torch.zeros(self.num_envs, device=self.device)
 
+    # Simple plotting setup
+    if self.cfg.enable_plotting:
+      self.plot_times = []
+      self.plot_cmd = []
+      self.plot_actual = []
+      self.plot_foot_pos = []
+      self.plot_counter = 0
+      
+      import signal, atexit
+      atexit.register(self.save_plot)
+      signal.signal(signal.SIGINT, lambda s, f: (self.save_plot(), exit(0)))
+
   @property
   def command(self) -> torch.Tensor:
     return self.vel_command_b
@@ -61,6 +74,105 @@ class UniformVelocityCommand(CommandTerm):
       torch.abs(self.vel_command_b[:, 2] - self.robot.data.root_link_ang_vel_b[:, 2])
       / max_command_step
     )
+
+    # Store vals
+    if self.cfg.enable_plotting:
+      self.plot_counter += 1
+      if self.plot_counter % self.cfg.plot_decimation == 0:
+        idx = self.cfg.plot_env_idx
+        self.plot_times.append(self.plot_counter * self._env.step_dt)
+        self.plot_cmd.append([
+          self.vel_command_b[idx, 0].item(),
+          self.vel_command_b[idx, 1].item(),
+          self.vel_command_b[idx, 2].item()
+        ])
+        self.plot_actual.append([
+          self.robot.data.root_link_lin_vel_b[idx, 0].item(),
+          self.robot.data.root_link_lin_vel_b[idx, 1].item(),
+          self.robot.data.root_link_ang_vel_b[idx, 2].item()
+        ])
+        
+ 
+        foot_pos = None
+        if hasattr(self.robot.data, 'site_pos_w'):
+          foot_pos = self.robot.data.site_pos_w[idx, self.cfg.foot_index]
+        elif hasattr(self.robot.data, 'body_pos_w'):
+          foot_pos = self.robot.data.body_pos_w[idx, self.cfg.foot_index]
+        
+        if foot_pos is not None:
+          self.plot_foot_pos.append([
+            foot_pos[0].item(),
+            foot_pos[1].item(),
+            foot_pos[2].item()
+          ])
+        else:
+          self.plot_foot_pos.append([0.0, 0.0, 0.0])
+
+  def save_plot(self):
+    if not self.cfg.enable_plotting or len(self.plot_times) == 0:
+      return
+    
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    import os
+    
+    os.makedirs(self.cfg.plot_output_dir, exist_ok=True)
+    
+    t = np.array(self.plot_times)
+    cmd = np.array(self.plot_cmd)
+    act = np.array(self.plot_actual)
+    foot = np.array(self.plot_foot_pos)
+    
+    # X velocity
+    plt.figure(figsize=(10, 4))
+    plt.plot(t, cmd[:, 0], 'b-', label='Command', linewidth=2)
+    plt.plot(t, act[:, 0], 'r--', label='Actual', linewidth=1.5)
+    plt.ylabel('Vel X (m/s)')
+    plt.xlabel('Time (s)')
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig(f"{self.cfg.plot_output_dir}/vel_x.png", dpi=150)
+    plt.close()
+    
+    # Y velocity
+    plt.figure(figsize=(10, 4))
+    plt.plot(t, cmd[:, 1], 'b-', label='Command', linewidth=2)
+    plt.plot(t, act[:, 1], 'r--', label='Actual', linewidth=1.5)
+    plt.ylabel('Vel Y (m/s)')
+    plt.xlabel('Time (s)')
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig(f"{self.cfg.plot_output_dir}/vel_y.png", dpi=150)
+    plt.close()
+    
+    # Angular velocity
+    plt.figure(figsize=(10, 4))
+    plt.plot(t, cmd[:, 2], 'b-', label='Command', linewidth=2)
+    plt.plot(t, act[:, 2], 'r--', label='Actual', linewidth=1.5)
+    plt.ylabel('Vel Yaw (rad/s)')
+    plt.xlabel('Time (s)')
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig(f"{self.cfg.plot_output_dir}/vel_yaw.png", dpi=150)
+    plt.close()
+    
+    # Front left foot position
+    plt.figure(figsize=(10, 4))
+    #plt.plot(t, foot[:, 0], 'g-', label='X', linewidth=1.5)
+    #plt.plot(t, foot[:, 1], 'b-', label='Y', linewidth=1.5)
+    plt.plot(t, foot[:, 2], 'r-', label='Z (height)', linewidth=1.5)
+    plt.ylabel('Foot Position (m)')
+    plt.xlabel('Time (s)')
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig(f"{self.cfg.plot_output_dir}/foot_pos.png", dpi=150)
+    plt.close()
+    
 
   def _resample_command(self, env_ids: torch.Tensor) -> None:
     r = torch.empty(len(env_ids), device=self.device)
@@ -88,6 +200,48 @@ class UniformVelocityCommand(CommandTerm):
       )
       self.robot.write_root_state_to_sim(root_state, init_vel_env_ids)
 
+  # def _resample_command(self, env_ids: torch.Tensor) -> None:
+  #   r = torch.empty(len(env_ids), device=self.device)
+
+  #   step = (self._env._sim_step_counter)/96
+  #   if step >=0 and step <125:
+  #     self.vel_command_b[env_ids, 0] = r.uniform_(*self.cfg.ranges.lin_vel_x1)
+  #     self.vel_command_b[env_ids, 1] = r.uniform_(*self.cfg.ranges.lin_vel_y1)
+  #     self.vel_command_b[env_ids, 2] = r.uniform_(*self.cfg.ranges.ang_vel_z1)
+  #   elif step >=125 and step <250:
+  #     self.vel_command_b[env_ids, 0] = r.uniform_(*self.cfg.ranges.lin_vel_x2)
+  #     self.vel_command_b[env_ids, 1] = r.uniform_(*self.cfg.ranges.lin_vel_y2)
+  #     self.vel_command_b[env_ids, 2] = r.uniform_(*self.cfg.ranges.ang_vel_z2)
+  #   elif step >=250 and step <375:
+  #     self.vel_command_b[env_ids, 0] = r.uniform_(*self.cfg.ranges.lin_vel_x3)
+  #     self.vel_command_b[env_ids, 1] = r.uniform_(*self.cfg.ranges.lin_vel_y3)
+  #     self.vel_command_b[env_ids, 2] = r.uniform_(*self.cfg.ranges.ang_vel_z3)
+  #   else:
+  #     self.vel_command_b[env_ids, 0] = r.uniform_(*self.cfg.ranges.lin_vel_x4)
+  #     self.vel_command_b[env_ids, 1] = r.uniform_(*self.cfg.ranges.lin_vel_y4)
+  #     self.vel_command_b[env_ids, 2] = r.uniform_(*self.cfg.ranges.ang_vel_z4)
+    
+  #   if self.cfg.heading_command:
+  #     assert self.cfg.ranges.heading is not None
+  #     self.heading_target[env_ids] = r.uniform_(*self.cfg.ranges.heading)
+  #     self.is_heading_env[env_ids] = r.uniform_(0.0, 1.0) <= self.cfg.rel_heading_envs
+  #   self.is_standing_env[env_ids] = r.uniform_(0.0, 1.0) <= self.cfg.rel_standing_envs
+
+  #   init_vel_mask = r.uniform_(0.0, 1.0) < self.cfg.init_velocity_prob
+  #   init_vel_env_ids = env_ids[init_vel_mask]
+  #   if len(init_vel_env_ids) > 0:
+  #     root_pos = self.robot.data.root_link_pos_w[init_vel_env_ids]
+  #     root_quat = self.robot.data.root_link_quat_w[init_vel_env_ids]
+  #     lin_vel_b = self.robot.data.root_link_lin_vel_b[init_vel_env_ids]
+  #     lin_vel_b[:, :2] = self.vel_command_b[init_vel_env_ids, :2]
+  #     root_lin_vel_w = quat_apply(root_quat, lin_vel_b)
+  #     root_ang_vel_b = self.robot.data.root_link_ang_vel_b[init_vel_env_ids]
+  #     root_ang_vel_b[:, 2] = self.vel_command_b[init_vel_env_ids, 2]
+  #     root_state = torch.cat(
+  #       [root_pos, root_quat, root_lin_vel_w, root_ang_vel_b], dim=-1
+  #     )
+  #     self.robot.write_root_state_to_sim(root_state, init_vel_env_ids)
+
   def _update_command(self) -> None:
     if self.cfg.heading_command:
       self.heading_error = wrap_to_pi(self.heading_target - self.robot.data.heading_w)
@@ -100,15 +254,32 @@ class UniformVelocityCommand(CommandTerm):
     standing_env_ids = self.is_standing_env.nonzero(as_tuple=False).flatten()
     self.vel_command_b[standing_env_ids, :] = 0.0
 
-  # Visualization.
+  # def _update_command(self) -> None:
+  #   if self.cfg.heading_command:
+  #     self.heading_error = wrap_to_pi(self.heading_target - self.robot.data.heading_w)
+  #     env_ids = self.is_heading_env.nonzero(as_tuple=False).flatten()
+      
+  #     step = (self._env._sim_step_counter)/96
+
+  #     if step >=0 and step <125:
+  #       min_val, max_val = self.cfg.ranges.ang_vel_z1
+  #     elif step >=125 and step <250:
+  #       min_val, max_val = self.cfg.ranges.ang_vel_z2
+  #     elif step >=250 and step <375:
+  #       min_val, max_val = self.cfg.ranges.ang_vel_z3
+  #     else:
+  #       min_val, max_val = self.cfg.ranges.ang_vel_z4
+
+  #     self.vel_command_b[env_ids, 2] = torch.clip(
+  #       self.cfg.heading_control_stiffness * self.heading_error[env_ids],
+  #       min=min_val,max=max_val,
+  #     )
+  #   standing_env_ids = self.is_standing_env.nonzero(as_tuple=False).flatten()
+  #   self.vel_command_b[standing_env_ids, :] = 0.0
 
   def _debug_vis_impl(self, visualizer: "DebugVisualizer") -> None:
-    """Draw velocity command and actual velocity arrows.
-
-    Note: Only visualizes the selected environment (visualizer.env_idx).
-    """
+    """Draw velocity command and actual velocity arrows."""
     batch = visualizer.env_idx
-
     if batch >= self.num_envs:
       return
 
@@ -125,54 +296,25 @@ class UniformVelocityCommand(CommandTerm):
     lin_vel_b = lin_vel_bs[batch]
     ang_vel_b = ang_vel_bs[batch]
 
-    # Skip if robot appears uninitialized (at origin).
     if np.linalg.norm(base_pos_w) < 1e-6:
       return
 
-    # Helper to transform local to world coordinates.
-    def local_to_world(
-      vec: np.ndarray, pos: np.ndarray = base_pos_w, mat: np.ndarray = base_mat_w
-    ) -> np.ndarray:
-      return pos + mat @ vec
+    def local_to_world(vec: np.ndarray) -> np.ndarray:
+      return base_pos_w + base_mat_w @ vec
 
     scale = self.cfg.viz.scale
-    z_offset = self.cfg.viz.z_offset
+    z = self.cfg.viz.z_offset
 
-    # Command linear velocity arrow (blue).
-    cmd_lin_from = local_to_world(np.array([0, 0, z_offset]) * scale)
-    cmd_lin_to = local_to_world(
-      (np.array([0, 0, z_offset]) + np.array([cmd[0], cmd[1], 0])) * scale
-    )
-    visualizer.add_arrow(
-      cmd_lin_from, cmd_lin_to, color=(0.2, 0.2, 0.6, 0.6), width=0.015
-    )
-
-    # Command angular velocity arrow (green).
-    cmd_ang_from = cmd_lin_from
-    cmd_ang_to = local_to_world(
-      (np.array([0, 0, z_offset]) + np.array([0, 0, cmd[2]])) * scale
-    )
-    visualizer.add_arrow(
-      cmd_ang_from, cmd_ang_to, color=(0.2, 0.6, 0.2, 0.6), width=0.015
-    )
-
-    # Actual linear velocity arrow (cyan).
-    act_lin_from = local_to_world(np.array([0, 0, z_offset]) * scale)
-    act_lin_to = local_to_world(
-      (np.array([0, 0, z_offset]) + np.array([lin_vel_b[0], lin_vel_b[1], 0])) * scale
-    )
-    visualizer.add_arrow(
-      act_lin_from, act_lin_to, color=(0.0, 0.6, 1.0, 0.7), width=0.015
-    )
-
-    # Actual angular velocity arrow (light green).
-    act_ang_from = act_lin_from
-    act_ang_to = local_to_world(
-      (np.array([0, 0, z_offset]) + np.array([0, 0, ang_vel_b[2]])) * scale
-    )
-    visualizer.add_arrow(
-      act_ang_from, act_ang_to, color=(0.0, 1.0, 0.4, 0.7), width=0.015
-    )
+    # Draw arrows
+    base = local_to_world(np.array([0, 0, z]) * scale)
+    visualizer.add_arrow(base, local_to_world((np.array([0, 0, z]) + np.array([cmd[0], cmd[1], 0])) * scale), 
+                        color=(0.2, 0.2, 0.6, 0.6), width=0.015)
+    visualizer.add_arrow(base, local_to_world((np.array([0, 0, z]) + np.array([0, 0, cmd[2]])) * scale), 
+                        color=(0.2, 0.6, 0.2, 0.6), width=0.015)
+    visualizer.add_arrow(base, local_to_world((np.array([0, 0, z]) + np.array([lin_vel_b[0], lin_vel_b[1], 0])) * scale), 
+                        color=(0.0, 0.6, 1.0, 0.7), width=0.015)
+    visualizer.add_arrow(base, local_to_world((np.array([0, 0, z]) + np.array([0, 0, ang_vel_b[2]])) * scale), 
+                        color=(0.0, 1.0, 0.4, 0.7), width=0.015)
 
 
 @dataclass(kw_only=True)
@@ -180,18 +322,65 @@ class UniformVelocityCommandCfg(CommandTermCfg):
   asset_name: str
   heading_command: bool = False
   heading_control_stiffness: float = 1.0
-  rel_standing_envs: float = 0.1 #changed
-  rel_heading_envs: float = 0.3 #changed
+  rel_standing_envs: float = 0.1
+  rel_heading_envs: float = 0.3
   init_velocity_prob: float = 0.0
-  resampling_time_range: tuple[float, float] = (3.0, 8.0) #added
+  resampling_time_range: tuple[float, float] = (3.0, 8.0)
+  
+  # For plotting
+  enable_plotting: bool = True
+  plot_decimation: int = 10
+  plot_env_idx: int = 0
+  plot_output_dir: str = "plots"
+  foot_index: int = 0  
+
   class_type: type[CommandTerm] = UniformVelocityCommand
 
   @dataclass 
   class Ranges:
-    lin_vel_x: tuple[float, float] = (0.1, 0.4) #changed, must be within (-1.0, 1.0)
-    lin_vel_y: tuple[float, float] = (-0.1, 0.1) #changed, must be within (-1.0, 1.0)
-    ang_vel_z: tuple[float, float] = (-0.1, 0.1) #changed
-    heading: tuple[float, float] | None = (-np.pi, np.pi) #changed
+    # lin_vel_x1: tuple[float, float] = (0.0, 0.6) #changed, must be within (-1.0, 1.0)
+    # lin_vel_y1: tuple[float, float] = (0.0, 0.0) #changed, must be within (-1.0, 1.0)
+    # ang_vel_z1: tuple[float, float] = (0.0, 0.0) #changed,  must be within (-1.0, 1.0)
+
+    # lin_vel_x2: tuple[float, float] = (0.0, 0.0) #changed, must be within (-1.0, 1.0)
+    # lin_vel_y2: tuple[float, float] = (0.4, 0.4) #changed, must be within (-1.0, 1.0)
+    # ang_vel_z2: tuple[float, float] = (0.0, 0.0) #changed,  must be within (-1.0, 1.0)
+
+    # lin_vel_x3: tuple[float, float] = (-0.05, 0.05) #changed, must be within (-1.0, 1.0)
+    # lin_vel_y3: tuple[float, float] = (-0.05, 0.05) #changed, must be within (-1.0, 1.0)
+    # ang_vel_z3: tuple[float, float] = (0.4, 0.4) #changed,  must be within (-1.0, 1.0)
+
+    # lin_vel_x4: tuple[float, float] = (0.6, 0.6) #changed, must be within (-1.0, 1.0)
+    # lin_vel_y4: tuple[float, float] = (0.0, 0.0) #changed, must be within (-1.0, 1.0)
+    # ang_vel_z4: tuple[float, float] = (0.3, 0.3) #changed,  must be within (-1.0, 1.0)
+
+    #training values
+    # lin_vel_x1: tuple[float, float] = (-0.2, 0.8) #changed, must be within (-1.0, 1.0)
+    # lin_vel_y1: tuple[float, float] = (-0.5, 0.5) #changed, must be within (-1.0, 1.0)
+    # ang_vel_z1: tuple[float, float] = (-0.5, 0.5) #changed,  must be within (-1.0, 1.0)
+
+    # lin_vel_x2: tuple[float, float] = (-0.2, 0.8) #changed, must be within (-1.0, 1.0)
+    # lin_vel_y2: tuple[float, float] = (-0.5, 0.5) #changed, must be within (-1.0, 1.0)
+    # ang_vel_z2: tuple[float, float] = (-0.5, 0.5) #changed,  must be within (-1.0, 1.0)
+
+    # lin_vel_x3: tuple[float, float] = (-0.2, 0.8) #changed, must be within (-1.0, 1.0)
+    # lin_vel_y3: tuple[float, float] = (-0.5, 0.5) #changed, must be within (-1.0, 1.0)
+    # ang_vel_z3: tuple[float, float] = (-0.5, 0.5) #changed,  must be within (-1.0, 1.0)
+
+    # lin_vel_x4: tuple[float, float] = (-0.2, 0.8) #changed, must be within (-1.0, 1.0)
+    # lin_vel_y4: tuple[float, float] = (-0.5, 0.5) #changed, must be within (-1.0, 1.0)
+    # ang_vel_z4: tuple[float, float] = (-0.5, 0.5) #changed,  must be within (-1.0, 1.0)
+
+    # lin_vel_x: tuple[float, float] = (0.6, 0.6) #changed, must be within (-1.0, 1.0)
+    # lin_vel_y: tuple[float, float] = (0.0, 0.0) #changed, must be within (-1.0, 1.0)
+    # ang_vel_z: tuple[float, float] = (0.3, 0.3) #changed,  must be within (-1.0, 1.0)
+
+
+
+    lin_vel_x: tuple[float, float] = (0.1, 0.4)
+    lin_vel_y: tuple[float, float] = (-0.1, 0.1)
+    ang_vel_z: tuple[float, float] = (-0.1, 0.1)
+    heading: tuple[float, float] | None = (-np.pi, np.pi)
 
   ranges: Ranges = field(default_factory=Ranges)
 
@@ -208,4 +397,3 @@ class UniformVelocityCommandCfg(CommandTermCfg):
         "The velocity command has heading commands active (heading_command=True) but "
         "the `ranges.heading` parameter is set to None."
       )
-    
