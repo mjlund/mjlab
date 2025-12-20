@@ -119,7 +119,7 @@ def create_backflip_env_cfg(
       asset_name="robot",
       flip_duration = 1.2, 
       resampling_time_range=(0.3, 0.8), #changed
-      class_type = type[CommandTermCfg] #rel_standing_envs=0.1, #changed
+      #class_type = type[CommandTermCfg] #rel_standing_envs=0.1, #changed
       #heading_command=True #added this line
     )
   }
@@ -217,7 +217,7 @@ def create_backflip_env_cfg(
 
   rewards = {
     "lin_vel": RewardTermCfg( #added
-      func=mdp.track_linear_backflip,
+      func=mdp.track_linear_velocity,
       weight=2.0,
       params={
         "std": math.sqrt(0.25),
@@ -225,7 +225,7 @@ def create_backflip_env_cfg(
       },
     ),
     "ang_vel": RewardTermCfg( #added
-      func=mdp.track_angular_backflip,
+      func=mdp.track_angular_velocity,
       weight=2.0,
       params={
         "std": math.sqrt(0.25),
@@ -320,4 +320,5 @@ def create_backflip_env_cfg(
     decimation=4,
     episode_length_s=20.0,
   )
+
 
