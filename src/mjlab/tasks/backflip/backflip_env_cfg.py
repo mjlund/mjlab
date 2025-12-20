@@ -25,7 +25,7 @@ from mjlab.scene import SceneCfg
 from mjlab.sensor import ContactSensorCfg
 from mjlab.sim import MujocoCfg, SimulationCfg
 from mjlab.tasks.backflip import mdp
-from mjlab.tasks.backflip.mdp import UniformBackflipCommandCfg
+from mjlab.tasks.backflip.mdp import BackflipCommandCfg
 from mjlab.terrains import TerrainImporterCfg
 from mjlab.terrains.config import ROUGH_TERRAINS_CFG
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
@@ -319,3 +319,4 @@ def create_backflip_env_cfg(
     decimation=4,
     episode_length_s=20.0,
   )
+
