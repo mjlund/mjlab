@@ -4,6 +4,8 @@ from typing import TYPE_CHECKING
 
 import torch
 
+from mjlab.third_party.isaaclab.isaaclab.utils.math import euler_xyz_from_quat
+
 from mjlab.entity import Entity
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.sensor import ContactSensor
@@ -14,19 +16,10 @@ if TYPE_CHECKING:
 _DEFAULT_ASSET_CFG = SceneEntityCfg("robot")
 
 def base_euler_angles(
-    env: ManagerBasedRlEnv, 
-    asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG
+  env: ManagerBasedRlEnv, asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG
 ) -> torch.Tensor:
-    """Returns the Roll, Pitch, and Yaw of the robot base in the world frame."""
-    # We retrieve the world euler angles calculated in the BackflipCommand metrics
-    command_term = env.command_manager.get_term("backflip")
-    if command_term is not None and "root_euler_w" in command_term.metrics:
-        return command_term.metrics["root_euler_w"]
-    
-    # Fallback: calculate directly if command isn't available
-    from mjlab.third_party.isaaclab.isaaclab.utils.math import euler_xyz_from_quat
-    asset: Entity = env.scene[asset_cfg.name]
-    return euler_xyz_from_quat(asset.data.root_link_quat_w)
+  asset: Entity = env.scene[asset_cfg.name]
+  return euler_xyz_from_quat(asset.data.root_link_quat_w)
 
 
 def base_height(
@@ -155,3 +148,4 @@ def generated_commands(env: ManagerBasedRlEnv, command_name: str) -> torch.Tenso
   command = env.command_manager.get_command(command_name)
   assert command is not None
   return command
+
