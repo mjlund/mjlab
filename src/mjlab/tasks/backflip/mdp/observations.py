@@ -34,9 +34,13 @@ def base_height(
 
 def backflip_phase(env: ManagerBasedRlEnv, command_name: str) -> torch.Tensor:
     """Returns the current progress (phi) of the backflip [0, 1]."""
-    command_term = env.command_manager.get_term(command_name)
-    assert command_term is not None
-    # Assuming phi is the first element in your command_tensor
+    command_term = env.command_manager._terms.get(command_name, None)
+
+    if command_term is None:
+        # Fallback during env init: return zeros with correct shape
+        num_envs = env.scene.num_envs
+        return torch.zeros((num_envs, 1), device=env.device)
+
     return command_term.command[:, 0:1]
 
 
@@ -149,5 +153,6 @@ def generated_commands(env: ManagerBasedRlEnv, command_name: str) -> torch.Tenso
   command = env.command_manager.get_command(command_name)
   assert command is not None
   return command
+
 
 
