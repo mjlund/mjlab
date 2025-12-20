@@ -162,25 +162,25 @@ def create_velocity_env_cfg(
   critic_terms = {
     **policy_terms,
 
-    # Part 2 (b) #comment from foot_height to foot_contact forces to run only part 1
-    # "foot_height": ObservationTermCfg( #added
-    #   func=mdp.foot_height,
-    #   params={
+    #Part 2 (b) #comment from foot_height to foot_contact forces to run only part 1
+    "foot_height": ObservationTermCfg( #added
+      func=mdp.foot_height,
+      params={
     #     #default asset cfg
-    #   },
-    # ),
-    # "foot_air_time": ObservationTermCfg( #added
-    #   func=mdp.foot_air_time,
-    #   params={
-    #     "sensor_name": feet_sensor_cfg.name,
-    #   },
-    # ),
-    # "foot_contact_forces": ObservationTermCfg( #added
-    #   func=mdp.foot_contact_forces, #another function called foot_contact
-    #   params={
-    #     "sensor_name": feet_sensor_cfg.name,
-    #   },
-    # ),
+       },
+     ),
+     "foot_air_time": ObservationTermCfg( #added
+       func=mdp.foot_air_time,
+       params={
+         "sensor_name": feet_sensor_cfg.name,
+       },
+     ),
+     "foot_contact_forces": ObservationTermCfg( #added
+       func=mdp.foot_contact_forces, #another function called foot_contact
+       params={
+         "sensor_name": feet_sensor_cfg.name,
+       },
+     ),
   }
 
   observations = {
@@ -358,3 +358,4 @@ def create_velocity_env_cfg(
     decimation=4,
     episode_length_s=20.0,
   )
+
