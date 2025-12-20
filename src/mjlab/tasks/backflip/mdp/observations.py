@@ -13,6 +13,48 @@ if TYPE_CHECKING:
 
 _DEFAULT_ASSET_CFG = SceneEntityCfg("robot")
 
+def base_euler_angles(
+    env: ManagerBasedRlEnv, 
+    asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG
+) -> torch.Tensor:
+    """Returns the Roll, Pitch, and Yaw of the robot base in the world frame."""
+    # We retrieve the world euler angles calculated in the BackflipCommand metrics
+    command_term = env.command_manager.get_term("backflip")
+    if command_term is not None and "root_euler_w" in command_term.metrics:
+        return command_term.metrics["root_euler_w"]
+    
+    # Fallback: calculate directly if command isn't available
+    from mjlab.third_party.isaaclab.isaaclab.utils.math import euler_xyz_from_quat
+    asset: Entity = env.scene[asset_cfg.name]
+    return euler_xyz_from_quat(asset.data.root_link_quat_w)
+
+
+def base_height(
+    env: ManagerBasedRlEnv, 
+    asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG
+) -> torch.Tensor:
+    """Returns the absolute Z-height of the base."""
+    asset: Entity = env.scene[asset_cfg.name]
+    return asset.data.root_link_pos_w[:, 2:3] # [B, 1]
+
+
+def backflip_phase(env: ManagerBasedRlEnv, command_name: str) -> torch.Tensor:
+    """Returns the current progress (phi) of the backflip [0, 1]."""
+    command_term = env.command_manager.get_term(command_name)
+    assert command_term is not None
+    # Assuming phi is the first element in your command_tensor
+    return command_term.command[:, 0:1]
+
+
+def backflip_height_error(env: ManagerBasedRlEnv, command_name: str) -> torch.Tensor:
+    """Returns the difference between target height and actual height."""
+    command_term = env.command_manager.get_term(command_name)
+    asset_name = command_term.cfg.asset_name
+    
+    target_height = command_term.command[:, 1]
+    actual_height = env.scene[asset_name].data.root_link_pos_w[:, 2]
+    
+    return (target_height - actual_height).unsqueeze(1)
 
 def foot_height(
   env: ManagerBasedRlEnv, asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG
