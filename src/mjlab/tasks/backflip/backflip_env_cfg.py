@@ -156,7 +156,7 @@ def create_backflip_env_cfg(
       mode="reset",
       params={
         "pose_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5), "yaw": (-3.14, 3.14)},
-        "backflip_range": {},
+        "velocity_range": {},
       },
     ),
     "reset_robot_joints": EventTermCfg(
@@ -164,7 +164,7 @@ def create_backflip_env_cfg(
       mode="reset",
       params={
         "position_range": (-1.0, 1.0),
-        "backflip_range": (0.0, 0.0),
+        "velocity_range": (0.0, 0.0),
         "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
       },
     ),
@@ -186,7 +186,7 @@ def create_backflip_env_cfg(
       interval_range_s= (1.0, 3.0),
       params={
         "asset_cfg": SceneEntityCfg("robot"),
-        "backflip_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5)},
+        "velocity_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5)},
         #"field": "root_lin_vel", #unsure if correct field
       },
     ),
@@ -297,6 +297,7 @@ def create_backflip_env_cfg(
     decimation=4,
     episode_length_s=20.0,
   )
+
 
 
 
