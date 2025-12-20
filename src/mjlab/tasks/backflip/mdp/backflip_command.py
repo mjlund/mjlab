@@ -21,19 +21,22 @@ if TYPE_CHECKING:
   from mjlab.envs.manager_based_rl_env import ManagerBasedRlEnv
   from mjlab.viewer.debug_visualizer import DebugVisualizer
 
-
 #added 
-class BackflipCommand(CommandTermCfg):
+class BackflipCommand(CommandTerm):
   cfg: BackflipCommandCfg
 
   def __init__(self, cfg: BackflipCommandCfg, env: ManagerBasedRlEnv):
-      super().__init__(cfg, env)
-      
-      self.robot: Entity = env.scene[cfg.asset_name]
-      # [phase, desired_height, desired_pitch, desired_pitch_rate]
-      self.command_tensor = torch.zeros(self.num_envs, 4, device=self.device) #added
-      self.phase = torch.zeros(self.num_envs, device=self.device) #added phase
-      self.phase_rate = 1.0 / self.cfg.flip_duration  # seconds → normalized
+    super().__init__(cfg, env)
+
+    self.robot: Entity = env.scene[cfg.asset_name]
+
+    # [lin_vel_x, lin_vel_y, ang_vel_pitch]
+    self.backflip_command_b = torch.zeros(self.num_envs, 3, device=self.device)
+    
+    self.metrics["error_vel_xy"] = torch.zeros(self.num_envs, device=self.device)
+    self.metrics["error_vel_pitch"] = torch.zeros(self.num_envs, device=self.device)
+
+
       
 """
 class UniformVelocityCommand(CommandTerm):
@@ -70,29 +73,73 @@ class UniformVelocityCommand(CommandTerm):
   #  return self.vel_command_b
   
 @property #added
-def command(self):
-  return self.command_tensor 
+# def command(self):
+def command(self) -> torch.Tensor:
+  return self.backflip_command_b
+  #return self.command_tensor 
 
 
 def _update_metrics(self) -> None:
     max_command_time = self.cfg.resampling_time_range[1]
     max_command_step = max_command_time / self._env.step_dt
+    #linear verlocity error
     self.metrics["error_vel_xy"] += (
       torch.norm(
-        self.vel_command_b[:, :2] - self.robot.data.root_link_lin_vel_b[:, :2], dim=-1
+        self.backflip_command_b[:, :2] - self.robot.data.root_link_lin_vel_b[:, :2], dim=-1
       )
       / max_command_step
     )
-    self.metrics["error_vel_yaw"] += (
-      torch.abs(self.vel_command_b[:, 2] - self.robot.data.root_link_ang_vel_b[:, 2])
+    #angular velocity error (pitch)
+    self.metrics["error_vel_pitch"] += (
+      torch.abs(self.backflip_command_b[:,2 ] - self.robot.data.root_link_ang_vel_b[:, 1])
       / max_command_step
     )
+    #yaw and roll should stay 0
+    self.metrics["error_vel_yaw"] += (
+      torch.abs(0.0 - self.robot.data.root_link_ang_vel_b[:, 2])
+      / max_command_step
+    )
+    self.metrics["error_vel_roll"] += (
+      torch.abs(0.0 - self.robot.data.root_link_ang_vel_b[:, 0])
+      / max_command_step      
+    )
+
+    # track max height
+    current_height = self.robot.data.root_link_pos_w[:, 2]
+    self.max_height = torch.max(self.max_height, current_height)
+    self.metrics["max_height"] = self.max_height
+
+    #track current total pitch (360 max)
+    current_pitch = self.robot.data.euler_angles_b[:, 1]
+    delta_pitch = wrap_to_pi(current_pitch - self.prev_pitch)
+    self.total_pitch += torch.abs(delta_pitch)
+    self.prev_pitch = current_pitch
+    self.metrics["total_pitch"] = self.total_pitch
+
+    # track current total yaw 
+    current_yaw = self.robot.data.euler_angles_b[:, 2]
+    delta_yaw = wrap_to_pi(current_yaw - self.prev_yaw)
+    self.total_yaw += torch.abs(delta_yaw)
+    self.prev_yaw = current_yaw
+    self.metrics["total_yaw"] = self.total_yaw
+
+    #track current total roll
+    current_roll = self.robot.data.euler_angles_b[:, 0]
+    delta_roll = wrap_to_pi(current_roll - self.prev_roll)
+    self.total_roll += torch.abs(delta_roll)
+    self.prev_roll = current_roll
+    self.metrics["total_roll"] = self.total_roll
+      
+
 
 def _resample_command(self, env_ids: torch.Tensor) -> None:
     r = torch.empty(len(env_ids), device=self.device)
-    self.vel_command_b[env_ids, 0] = r.uniform_(*self.cfg.ranges.lin_vel_x)
-    self.vel_command_b[env_ids, 1] = r.uniform_(*self.cfg.ranges.lin_vel_y)
-    self.vel_command_b[env_ids, 2] = r.uniform_(*self.cfg.ranges.ang_vel_z)
+    #self.vel_command_b[env_ids, 0] = r.uniform_(*self.cfg.ranges.lin_vel_x)
+    #self.vel_command_b[env_ids, 1] = r.uniform_(*self.cfg.ranges.lin_vel_y)
+    #self.vel_command_b[env_ids, 2] = r.uniform_(*self.cfg.ranges.ang_vel_z)
+    self.backflip_command_b[env_ids, 0] = r.uniform_(*self.cfg.ranges.lin_vel_x)
+    self.backflip_command_b[env_ids, 1] = r.uniform_(*self.cfg.ranges.lin_vel_y)
+    self.backflip_command_b[env_ids, 2] = r.uniform_(*self.cfg.ranges.ang_vel_pitch)
     if self.cfg.heading_command:
       assert self.cfg.ranges.heading is not None
       self.heading_target[env_ids] = r.uniform_(*self.cfg.ranges.heading)

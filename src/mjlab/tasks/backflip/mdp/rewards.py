@@ -385,3 +385,53 @@ class variable_posture:
     error_squared = torch.square(current_joint_pos - desired_joint_pos)
 
     return torch.exp(-torch.mean(error_squared / (std**2), dim=1))
+
+##############backflip###########
+def backflip_phase_reward(env: ManagerBasedRlEnv):
+    # Access the metrics we defined in backflip_command.py
+    command_term = env.command_manager.get_term("backflip")
+    phi = command_term.metrics["phi"]
+    pitch = env.scene[command_term.cfg.asset_name].data.root_euler_w[:, 1]
+    lin_vel = env.scene[command_term.cfg.asset_name].data.root_link_lin_vel_w
+    ang_vel = env.scene[command_term.cfg.asset_name].data.root_link_ang_vel_b
+    
+    reward = torch.zeros_like(phi)
+
+    # --- Phase: Takeoff (0.0 -> 0.25) ---
+    takeoff_mask = (phi <= 0.25)
+    # Reward vertical velocity burst and pitch rate
+    reward[takeoff_mask] += 1.0 * lin_vel[takeoff_mask, 2] 
+    reward[takeoff_mask] += 0.1 * torch.abs(ang_vel[takeoff_mask, 1])
+
+    # --- Phase: Flight/Apex (0.25 -> 0.75) ---
+    flight_mask = (phi > 0.25) & (phi <= 0.75)
+    # Target pitch follows a linear interpolation from 0 to 2*PI
+    # At phi=0.5, target is exactly PI (180 degrees)
+    target_pitch = phi * 2 * np.pi
+    pitch_error = torch.abs(wrap_to_pi(pitch - target_pitch))
+    reward[flight_mask] += torch.exp(-pitch_error[flight_mask] / 0.5)
+    
+    # Bonus for height during flight
+    reward[flight_mask] += 2.0 * env.scene[command_term.cfg.asset_name].data.root_link_pos_w[flight_mask, 2]
+
+    # --- Phase: Landing (0.75 -> 1.0) ---
+    landing_mask = (phi > 0.75)
+    # Reward being upright (pitch near 0 or 2PI)
+    upright_error = torch.abs(wrap_to_pi(pitch[landing_mask]))
+    reward[landing_mask] += torch.exp(-upright_error / 0.2)
+    
+    # Penalize velocity on landing to encourage stability
+    reward[landing_mask] -= 0.1 * torch.norm(lin_vel[landing_mask], dim=-1)
+
+    return reward
+
+def stability_penalty(env: ManagerBasedRlEnv):
+    """Global stability penalty: keep roll and yaw at zero regardless of phase."""
+    command_term = env.command_manager.get_term("backflip")
+    euler = env.scene[command_term.cfg.asset_name].data.root_euler_w
+    
+    # Penalize any Roll (index 0) or Yaw (index 2)
+    roll_error = torch.abs(euler[:, 0])
+    yaw_error = torch.abs(euler[:, 2])
+    
+    return -(roll_error + yaw_error)
