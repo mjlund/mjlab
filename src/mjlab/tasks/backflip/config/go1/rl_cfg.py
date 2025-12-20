@@ -1,4 +1,4 @@
-"""RL configuration for Unitree Go1 velocity task."""
+"""RL configuration for Unitree Go2 velocity task."""
 
 from mjlab.rl import (
   RslRlOnPolicyRunnerCfg,
@@ -6,7 +6,7 @@ from mjlab.rl import (
   RslRlPpoAlgorithmCfg,
 )
 
-UNITREE_GO1_PPO_RUNNER_CFG = RslRlOnPolicyRunnerCfg(
+UNITREE_GO2_PPO_RUNNER_CFG = RslRlOnPolicyRunnerCfg(
   policy=RslRlPpoActorCriticCfg(
     init_noise_std=1.0,
     actor_obs_normalization=False,
@@ -29,8 +29,9 @@ UNITREE_GO1_PPO_RUNNER_CFG = RslRlOnPolicyRunnerCfg(
     desired_kl=0.01,
     max_grad_norm=1.0,
   ),
-  experiment_name="go1_velocity",
+  experiment_name="go2_Velocity",
   save_interval=50,
   num_steps_per_env=24,
   max_iterations=400, #changed
 )
+
