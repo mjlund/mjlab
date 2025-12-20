@@ -47,7 +47,7 @@ def UNITREE_GO2_ROUGH_ENV_CFG() -> ManagerBasedRlEnvCfg:
   )
 
   cfg = create_backflip_env_cfg(
-    robot_cfg=get_go1_robot_cfg(),
+    robot_cfg=get_go2_robot_cfg(),
     action_scale=GO2_ACTION_SCALE,
     viewer_body_name="trunk",
     site_names=site_names,
@@ -93,5 +93,6 @@ def UNITREE_GO2_FLAT_ENV_CFG() -> ManagerBasedRlEnvCfg:
   cfg.scene.terrain.terrain_generator = None
 
   return cfg
+
 
 
