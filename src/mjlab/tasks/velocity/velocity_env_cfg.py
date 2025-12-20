@@ -302,39 +302,39 @@ def create_velocity_env_cfg(
 
 
     #part 2 (a) #comment from feet_clearance to feet_slip forces to run only part 1
-    # "feet_clearance": RewardTermCfg( #added
-    #   func=mdp.feet_clearance, 
-    #   weight=-2.0,
-    #   params={
-    #     "target_height": 0.1,
-    #     "command_name": "twist",
-    #     "command_threshold": 0.05,
-    #     "asset_cfg": SceneEntityCfg("robot", site_names=site_names),
-    #   },
-    # ),
-    # "feet_swing_height": RewardTermCfg( #added
-    #   func=mdp.feet_swing_height, 
-    #   weight=-0.25,
-    #   params={
-    #     "sensor_name": feet_sensor_cfg.name,
-    #     "target_height": 0.1,
-    #     "command_name": "twist",
-    #     "command_threshold": 0.1, #no specific number given in assignment, but no default
-    #     "asset_cfg": SceneEntityCfg("robot", site_names=site_names),
+     "feet_clearance": RewardTermCfg( #added
+       func=mdp.feet_clearance, 
+       weight=-2.0,
+       params={
+         "target_height": 0.1,
+         "command_name": "twist",
+         "command_threshold": 0.05,
+         "asset_cfg": SceneEntityCfg("robot", site_names=site_names),
+       },
+     ),
+     "feet_swing_height": RewardTermCfg( #added
+       func=mdp.feet_swing_height, 
+       weight=-0.25,
+       params={
+         "sensor_name": feet_sensor_cfg.name,
+         "target_height": 0.1,
+         "command_name": "twist",
+         "command_threshold": 0.1, #no specific number given in assignment, but no default
+         "asset_cfg": SceneEntityCfg("robot", site_names=site_names),
 
-    #   },
-    # ),
-    # "feet_slip": RewardTermCfg( #added
-    #   func=mdp.feet_slip, 
-    #   weight=-0.1,
-    #   params={
-    #     "sensor_name": feet_sensor_cfg.name,
-    #     "command_name": "twist",
-    #     #"command_threshold": 0.05, #predefined in function declaration; no specific number given in assignment
-    #     "asset_cfg": SceneEntityCfg("robot", site_names=site_names),
+       },
+     ),
+     "feet_slip": RewardTermCfg( #added
+       func=mdp.feet_slip, 
+       weight=-0.1,
+       params={
+         "sensor_name": feet_sensor_cfg.name,
+         "command_name": "twist",
+         "command_threshold": 0.05, #predefined in function declaration; no specific number given in assignment
+         "asset_cfg": SceneEntityCfg("robot", site_names=site_names),
 
-    #   },
-    # ),
+       },
+     ),
   }
 
   terminations = {
@@ -358,4 +358,5 @@ def create_velocity_env_cfg(
     decimation=4,
     episode_length_s=20.0,
   )
+
 
