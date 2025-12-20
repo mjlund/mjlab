@@ -115,7 +115,7 @@ def create_backflip_env_cfg(
   }
 
   commands: dict[str, CommandTermCfg] = {
-    "twist": UniformBackflipCommandCfg(
+    "twist": BackflipCommandCfg(
       asset_name="robot",
       resampling_time_range=(0.3, 0.8), #changed
       rel_standing_envs=0.1, #changed
@@ -319,4 +319,5 @@ def create_backflip_env_cfg(
     decimation=4,
     episode_length_s=20.0,
   )
+
 
