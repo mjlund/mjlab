@@ -61,6 +61,7 @@ SIM_CFG = SimulationCfg(
 )
 
 
+
 def create_velocity_env_cfg(
   robot_cfg: EntityCfg,
   action_scale: float | dict[str, float],
@@ -123,6 +124,7 @@ def create_velocity_env_cfg(
     )
   }
 
+  # Part 1 (f)
   policy_terms = {
     "projected_gravity": ObservationTermCfg(
       func=mdp.projected_gravity,
@@ -145,7 +147,7 @@ def create_velocity_env_cfg(
       noise=Unoise(n_min=-1.5, n_max=1.5),
     ),
     "last_action": ObservationTermCfg( #added
-      func=mdp.last_action,
+      func=mdp.last_action, # no noise range
     ),
     "generated_commands": ObservationTermCfg( #added
       func=mdp.generated_commands,
@@ -157,6 +159,26 @@ def create_velocity_env_cfg(
 
   critic_terms = {
     **policy_terms,
+
+    # Part 2 (b) #comment from foot_height to foot_contact forces to run only part 1
+    # "foot_height": ObservationTermCfg( #added
+    #   func=mdp.foot_height,
+    #   params={
+    #     #default asset cfg
+    #   },
+    # ),
+    # "foot_air_time": ObservationTermCfg( #added
+    #   func=mdp.foot_air_time,
+    #   params={
+    #     "sensor_name": feet_sensor_cfg.name,
+    #   },
+    # ),
+    # "foot_contact_forces": ObservationTermCfg( #added
+    #   func=mdp.foot_contact_forces, #another function called foot_contact
+    #   params={
+    #     "sensor_name": feet_sensor_cfg.name,
+    #   },
+    # ),
   }
 
   observations = {
@@ -190,12 +212,13 @@ def create_velocity_env_cfg(
         "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
       },
     ),
+    # Part 1 (g)
     "foot_friction_rand": EventTermCfg( #added
       func=mdp.randomize_field,
       mode="startup",
       domain_randomization=True,
       params={
-        "asset_cfg": SceneEntityCfg("robot", geom_names=foot_friction_geom_names),
+        "asset_cfg": SceneEntityCfg("robot", geom_names=foot_friction_geom_names), #foot geometries
         "field": "geom_friction",
         "ranges": (0.3, 1.2),
         "operation": "abs",
@@ -207,20 +230,20 @@ def create_velocity_env_cfg(
       domain_randomization=True,
       interval_range_s= (1.0, 3.0),
       params={
-        "asset_cfg": SceneEntityCfg("robot"),
         "velocity_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5)},
-        #"field": "root_lin_vel", #unsure if correct field
       },
     ),
   }
 
   rewards = {
+    # Part 1 (c)
     "lin_vel": RewardTermCfg( #added
       func=mdp.track_linear_velocity,
       weight=2.0,
       params={
         "std": math.sqrt(0.25),
-        "command_name": "twist" ##does this change?
+        "command_name": "twist"
+        #asset_cfg default
       },
     ),
     "ang_vel": RewardTermCfg( #added
@@ -229,16 +252,10 @@ def create_velocity_env_cfg(
       params={
         "std": math.sqrt(0.25),
         "command_name": "twist"
+        #asset_cfg default
       },
     ),
-    "upright": RewardTermCfg(
-      func=mdp.flat_orientation,
-      weight=1.0,
-      params={
-        "std": math.sqrt(0.2),
-        "asset_cfg": SceneEntityCfg("robot", body_names=(viewer_body_name,)),
-      },
-    ),
+
     "base_z": RewardTermCfg(
       func=mdp.base_z,
       weight=1.0,
@@ -247,7 +264,31 @@ def create_velocity_env_cfg(
         "asset_cfg": SceneEntityCfg("robot", body_names=(viewer_body_name,)),
       },
     ),
-    "action_rate_l2": RewardTermCfg(func=mdp.action_rate_l2, weight=-0.1),
+
+    # Part 1 (d)
+    "upright": RewardTermCfg( #values already correct
+      func=mdp.flat_orientation, #need to check if using right one w/ TA
+      weight=1.0,
+      params={
+        "std": math.sqrt(0.2),
+        "asset_cfg": SceneEntityCfg("robot", body_names=(viewer_body_name,)), #body id
+      },
+    ),
+    # "upright": RewardTermCfg( #values already correct
+    #   func=mdp.flat_orientation_l2, #need to check if using right one w/ TA
+    #   weight=1.0,
+    #   params={
+    #     #"std": math.sqrt(0.2),
+    #     #"asset_cfg": SceneEntityCfg("robot", body_names=(viewer_body_name,)), #body id
+    #   },
+    # ),
+    "default_joint_position": RewardTermCfg( #added
+      func=mdp.default_joint_position, 
+      weight=-0.1,
+      params={
+        "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)), #joint ids
+      },
+    ),
     "joint_pos_limits": RewardTermCfg( #added
       func=mdp.joint_pos_limits,
       weight=-1.0,
@@ -255,47 +296,43 @@ def create_velocity_env_cfg(
         "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)), #".*" instead of listing each joint individually
       },
     ),
-    "default_joint_position": RewardTermCfg( #added
-      func=mdp.default_joint_position, 
-      weight=-0.1,
+    "action_rate_l2": RewardTermCfg(func=mdp.action_rate_l2, weight=-0.1), #values already correct
+
+
+    #part 2 (a) #comment from feet_clearance to feet_slip forces to run only part 1
+    "feet_clearance": RewardTermCfg( #added
+      func=mdp.feet_clearance, 
+      weight=-2.0,
       params={
-        "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
+        "target_height": 0.1,
+        "command_name": "twist",
+        "command_threshold": 0.05,
+        "asset_cfg": SceneEntityCfg("robot", site_names=site_names),
       },
     ),
+    "feet_swing_height": RewardTermCfg( #added
+      func=mdp.feet_swing_height, 
+      weight=-0.25,
+      params={
+        "sensor_name": feet_sensor_cfg.name,
+        "target_height": 0.1,
+        "command_name": "twist",
+        "command_threshold": 0.1, #no specific number given in assignment, but no default
+        "asset_cfg": SceneEntityCfg("robot", site_names=site_names),
 
-    # "feet_clearance": RewardTermCfg( #added
-    #   func=mdp.feet_clearance, 
-    #   weight=-2.0,
-    #   params={
-    #     "command_name": "twist",
-    #     "target_height": 0.1,
-    #     "command_threshold": 0.05,
-    #     "asset_cfg": SceneEntityCfg("robot", site_names=site_names),
-    #   },
-    # ),
-    # "feet_swing_height": RewardTermCfg( #added
-    #   func=mdp.feet_swing_height, 
-    #   weight=-0.25,
-    #   params={
-    #     "target_height": 0.1,
-    #     "command_name": "twist",
-    #     "sensor_name": feet_sensor_cfg.name,
-    #     "command_threshold": 0.05, #no specific number given in assignment
-    #     "asset_cfg": SceneEntityCfg("robot", site_names=site_names),
+      },
+    ),
+    "feet_slip": RewardTermCfg( #added
+      func=mdp.feet_slip, 
+      weight=-0.1,
+      params={
+        "sensor_name": feet_sensor_cfg.name,
+        "command_name": "twist",
+        #"command_threshold": 0.05, #predefined in function declaration; no specific number given in assignment
+        "asset_cfg": SceneEntityCfg("robot", site_names=site_names),
 
-    #   },
-    # ),
-    # "feet_slip": RewardTermCfg( #added
-    #   func=mdp.feet_slip, 
-    #   weight=-0.1,
-    #   params={
-    #     "command_name": "twist",
-    #     #"command_threshold": 0.05, #predefined in function declaration; no specific number given in assignment
-    #     "asset_cfg": SceneEntityCfg(feet_sensor_cfg.name),
-    #     "target_cfg": SceneEntityCfg("robot", site_names=site_names),
-
-    #   },
-    # ),
+      },
+    ),
   }
 
   terminations = {
