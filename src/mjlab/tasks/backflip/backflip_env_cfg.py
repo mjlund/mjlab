@@ -125,35 +125,12 @@ def create_backflip_env_cfg(
   }
 
   policy_terms = {
-    "projected_gravity": ObservationTermCfg(
-      func=mdp.projected_gravity,
-      noise=Unoise(n_min=-0.05, n_max=0.05),
-    ),
-    "joint_pos": ObservationTermCfg(
-      func=mdp.joint_pos_rel,
-      noise=Unoise(n_min=-0.01, n_max=0.01),
-    ),
-    "base_lin_vel": ObservationTermCfg( #added
-      func=mdp.base_lin_vel,
-      noise=Unoise(n_min=-0.5, n_max=0.5),
-    ),
-    "base_ang_vel": ObservationTermCfg( #added
-      func=mdp.base_ang_vel,
-      noise=Unoise(n_min=-0.2, n_max=0.2),
-    ),
-    "joint_vel_rel": ObservationTermCfg( #added
-      func=mdp.joint_vel_rel,
-      noise=Unoise(n_min=-1.5, n_max=1.5),
-    ),
-    "last_action": ObservationTermCfg( #added
-      func=mdp.last_action,
-    ),
-    "generated_commands": ObservationTermCfg( #added
-      func=mdp.generated_commands,
-      params={
-        "command_name": "twist"
-      },
-    ),
+    "base_ang_vel": ObservationTermCfg(func=mdp.base_ang_vel),
+    "base_euler": ObservationTermCfg(func=mdp.base_euler_angles), # New
+    "phase": ObservationTermCfg(func=mdp.backflip_phase, params={"command_name": "backflip"}), # New
+    "joint_pos": ObservationTermCfg(func=mdp.joint_pos_rel),
+    "joint_vel": ObservationTermCfg(func=mdp.joint_vel_rel),
+    "height": ObservationTermCfg(func=mdp.base_height), # New
   }
 
   critic_terms = {
@@ -320,6 +297,7 @@ def create_backflip_env_cfg(
     decimation=4,
     episode_length_s=20.0,
   )
+
 
 
 
