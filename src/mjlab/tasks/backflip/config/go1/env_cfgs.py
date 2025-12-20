@@ -4,7 +4,7 @@ from copy import deepcopy
 
 from mjlab.asset_zoo.robots import (
   GO2_ACTION_SCALE,
-  get_go1_robot_cfg,
+  get_go2_robot_cfg,
 )
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.managers.manager_term_config import TerminationTermCfg
@@ -93,4 +93,5 @@ def UNITREE_GO2_FLAT_ENV_CFG() -> ManagerBasedRlEnvCfg:
   cfg.scene.terrain.terrain_generator = None
 
   return cfg
+
 
