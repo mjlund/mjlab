@@ -203,7 +203,7 @@ def create_backflip_env_cfg(
       },
     ),
     "perturbations_rand": EventTermCfg( #added
-      func=mdp.push_by_setting_backflip,
+      func=mdp.push_by_setting_velocity,
       mode="interval",
       domain_randomization=True,
       interval_range_s= (1.0, 3.0),
@@ -320,5 +320,6 @@ def create_backflip_env_cfg(
     decimation=4,
     episode_length_s=20.0,
   )
+
 
 
