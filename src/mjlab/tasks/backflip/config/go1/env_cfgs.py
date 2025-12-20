@@ -1,22 +1,22 @@
-"""Unitree Go1 velocity tracking environment configurations."""
+"""Unitree Go2 backflip tracking environment configurations."""
 
 from copy import deepcopy
 
 from mjlab.asset_zoo.robots import (
-  GO1_ACTION_SCALE,
+  GO2_ACTION_SCALE,
   get_go1_robot_cfg,
 )
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.managers.manager_term_config import TerminationTermCfg
 from mjlab.sensor import ContactMatch, ContactSensorCfg
-from mjlab.tasks.velocity import mdp
-from mjlab.tasks.velocity.velocity_env_cfg import VIEWER_CONFIG, create_velocity_env_cfg
+from mjlab.tasks.backflip import mdp
+from mjlab.tasks.backflip.backflip_env_cfg import VIEWER_CONFIG, create_backflip_env_cfg
 from mjlab.utils.retval import retval
 
 
 @retval
-def UNITREE_GO1_ROUGH_ENV_CFG() -> ManagerBasedRlEnvCfg:
-  """Create Unitree Go1 rough terrain velocity tracking configuration."""
+def UNITREE_GO2_ROUGH_ENV_CFG() -> ManagerBasedRlEnvCfg:
+  """Create Unitree Go2 rough terrain backflip tracking configuration."""
   foot_names = ("FR", "FL", "RR", "RL")
   site_names = ("FR", "FL", "RR", "RL")
   geom_names = tuple(f"{name}_foot_collision" for name in foot_names)
@@ -46,9 +46,9 @@ def UNITREE_GO1_ROUGH_ENV_CFG() -> ManagerBasedRlEnvCfg:
     num_slots=1,
   )
 
-  cfg = create_velocity_env_cfg(
+  cfg = create_backflip_env_cfg(
     robot_cfg=get_go1_robot_cfg(),
-    action_scale=GO1_ACTION_SCALE,
+    action_scale=GO2_ACTION_SCALE,
     viewer_body_name="trunk",
     site_names=site_names,
     feet_sensor_cfg=feet_ground_cfg,
@@ -82,10 +82,10 @@ def UNITREE_GO1_ROUGH_ENV_CFG() -> ManagerBasedRlEnvCfg:
 
 
 @retval
-def UNITREE_GO1_FLAT_ENV_CFG() -> ManagerBasedRlEnvCfg:
-  """Create Unitree Go1 flat terrain velocity tracking configuration."""
+def UNITREE_GO2_FLAT_ENV_CFG() -> ManagerBasedRlEnvCfg:
+  """Create Unitree Go2 flat terrain backflip tracking configuration."""
   # Start with rough terrain config.
-  cfg = deepcopy(UNITREE_GO1_ROUGH_ENV_CFG)
+  cfg = deepcopy(UNITREE_GO2_ROUGH_ENV_CFG)
 
   # Change to flat terrain.
   assert cfg.scene.terrain is not None
@@ -93,3 +93,4 @@ def UNITREE_GO1_FLAT_ENV_CFG() -> ManagerBasedRlEnvCfg:
   cfg.scene.terrain.terrain_generator = None
 
   return cfg
+
